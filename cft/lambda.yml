@@ -1,0 +1,21 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'CloudFormation Template for Creating a Lambda Function'
+
+Resources:
+  LambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: "stepfunction_glue_lambda"
+      Handler: "lambda-stepfunction.lambda_handler"
+      Role: "arn:aws:iam::020368925103:role/gluefullaccess" 
+      Code:
+        S3Bucket: "qkart-scripts"
+        S3Key: "scripts/gold_layer/lambdascripts/lambda-stepfunction.py"
+      Runtime: "python3.8" 
+      MemorySize: 128 
+      Timeout: 30 
+
+Outputs:
+  LambdaFunctionArn:
+    Description: "ARN of the newly created Lambda Function"
+    Value: !GetAtt LambdaFunction.Arn

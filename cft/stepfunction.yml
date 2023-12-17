@@ -1,0 +1,134 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'CloudFormation template for AWS Step Functions state machine orchestrating Glue jobs.'
+
+Resources:
+  # IAM Role for the Step Function
+  StepFunctionExecutionRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - states.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Policies:
+        - PolicyName: 'step-function-execution-policy'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'glue:StartJobRun'
+                  - 'glue:GetJobRun'
+                  - 'glue:GetJobRuns'
+                  - 'glue:BatchStopJobRun'
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - 'sns:Publish'
+                Resource: 'arn:aws:sns:ca-central-1:020368925103:glue_email_service'
+
+  # Step Function State Machine
+  GlueJobRunnerStateMachine:
+    Type: 'AWS::StepFunctions::StateMachine'
+    Properties:
+      DefinitionString:
+        !Sub |
+          { "Comment": "A state machine that executes Glue jobs sequentially and sends notifications based on job status.",
+            "StartAt": "Bronze Layer Job",
+            "States": {
+              "Bronze Layer Job": {
+                "Type": "Task",
+                "Resource": "arn:aws:states:::glue:startJobRun.sync",
+                "Parameters": {
+                  "JobName": "bronze_layer",
+                  "Arguments": {
+                    "--S3_INPUT_PATH": "s3://qkart-datasource-prod/orders/",
+                    "--S3_OUTPUT_BUCKET": "qkart-bronze-prod",
+                    "--BRONZE_DATABASE": "bronze",
+                    "--TABLE_NAME": "orders"
+                  }
+                },
+                "Next": "Silver Layer Job",
+                "Catch": [
+                  {
+                    "ErrorEquals": ["States.ALL"],
+                    "Next": "Notify Failure"
+                  }
+                ]
+              },
+              "Silver Layer Job": {
+                "Type": "Task",
+                "Resource": "arn:aws:states:::glue:startJobRun.sync",
+                "Parameters": {
+                  "JobName": "silver_layer",
+                  "Arguments": {
+                    "--BRONZE_DATABASE": "bronze",
+                    "--BRONZE_TABLE": "orders",
+                    "--SILVER_BUCKET": "qkart-silver-prod",
+                    "--SILVER_TABLE": "orders"
+                  }
+                },
+                "Next": "Gold Layer Job",
+                "Catch": [
+                  {
+                    "ErrorEquals": ["States.ALL"],
+                    "Next": "Notify Failure"
+                  }
+                ]
+              },
+              "Gold Layer Job": {
+                "Type": "Task",
+                "Resource": "arn:aws:states:::glue:startJobRun.sync",
+                "Parameters": {
+                  "JobName": "gold_layer",
+                  "Arguments": {
+                    "--GOLD_BUCKET": "qkart-gold-prod",
+                    "--SILVER_DATABASE": "silver",
+                    "--ORDERS_TABLE": "orders"
+                  }
+                },
+                "Next": "Notify Success",
+                "Catch": [
+                  {
+                    "ErrorEquals": ["States.ALL"],
+                    "Next": "Notify Failure"
+                  }
+                ]
+              },
+              "Notify Success": {
+                "Type": "Task",
+                "Resource": "arn:aws:states:::sns:publish",
+                "Parameters": {
+                  "TopicArn": "arn:aws:sns:ca-central-1:020368925103:glue_email_service",
+                  "Message": "All Glue jobs have completed successfully.",
+                  "Subject": "Success - AWS Glue Job Execution"
+                },
+                "End": true
+              },
+              "Notify Failure": {
+                "Type": "Task",
+                "Resource": "arn:aws:states:::sns:publish",
+                "Parameters": {
+                  "TopicArn": "arn:aws:sns:ca-central-1:020368925103:glue_email_service",
+                  "Message": "An error occurred during one of the Glue job executions.",
+                  "Subject": "Failure - AWS Glue Job Execution"
+                },
+                "End": true
+              }
+            }
+          }
+      RoleArn: !GetAtt StepFunctionExecutionRole.Arn
+
+Outputs:
+  StateMachineArn:
+    Description: 'State Machine ARN'
+    Value: !Ref GlueJobRunnerStateMachine
+
+  StepFunctionExecutionRoleArn:
+    Description: 'Step Function Execution Role ARN'
+    Value: !GetAtt StepFunctionExecutionRole.Arn

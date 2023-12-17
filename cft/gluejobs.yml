@@ -1,0 +1,51 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'AWS CloudFormation Template for Glue Jobs'
+
+Resources:
+  # The Glue Job for the Bronze Layer
+  GlueJobBronzeLayer:
+    Type: 'AWS::Glue::Job'
+    Properties:
+      Command:
+        Name: 'bronze'
+        ScriptLocation: 's3://qkart-scripts/scripts/bronze_layer.py' 
+      Role: 'arn:aws:iam::020368925103:role/gluefullaccess'
+      Name: 'bronze_layer'
+      DefaultArguments:
+        '--S3_INPUT_PATH': 's3://qkart-datasource-prod/orders/'
+        '--S3_OUTPUT_BUCKET': 'qkart-bronze-prod'
+        '--BRONZE_DATABASE': 'bronze'
+        '--TABLE_NAME': 'orders'
+      MaxCapacity: 2 
+
+  # The Glue Job for the Silver Layer
+  GlueJobSilverLayer:
+    Type: 'AWS::Glue::Job'
+    Properties:
+      Command:
+        Name: 'silver'
+        ScriptLocation: 's3://qkart-scripts/scripts/silver_layer.py' 
+      Role: 'arn:aws:iam::020368925103:role/gluefullaccess'
+      Name: 'silver_layer'
+      DefaultArguments:
+        '--BRONZE_DATABASE': 'bronze'
+        '--BRONZE_TABLE': 'orders'
+        '--SILVER_BUCKET': 's3://qkart-silver-prod'
+        '--SILVER_TABLE': 'orders'
+      MaxCapacity: 2 
+
+  # The Glue Job for the Gold Layer
+  GlueJobGoldLayer:
+    Type: 'AWS::Glue::Job'
+    Properties:
+      Command:
+        Name: 'gold'
+        ScriptLocation: 's3://qkart-scripts/scripts/gold_layer.py' 
+      Role: 'arn:aws:iam::020368925103:role/gluefullaccess' 
+      Name: 'gold_layer'
+      DefaultArguments:
+        '--GOLD_BUCKET': 's3://qkart-gold-prod'
+        '--SILVER_DATABASE': 'silver'
+        '--ORDERS_TABLE': 'orders'
+      MaxCapacity: 2 
+

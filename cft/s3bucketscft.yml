@@ -1,0 +1,44 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'CloudFormation template to create four separate S3 buckets.'
+
+Resources:
+
+  DataSourceBucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: 'qcart-datasource-prod' 
+      AccessControl: 'Private'
+
+  BronzeBucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: 'qkart-bronze-prod' 
+      AccessControl: 'Private'
+
+
+  SilverBucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: 'qkart-silver-prod' 
+      AccessControl: 'Private'
+
+
+  GoldBucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: 'qkart-gold-prod' 
+      AccessControl: 'Private'
+
+Outputs:
+  DataSourceBucketName:
+    Value: !Ref DataSourceBucket
+    Description: "Name of the data source S3 bucket."
+  BronzeBucketName:
+    Value: !Ref BronzeBucket
+    Description: "Name of the bronze S3 bucket."
+  SilverBucketName:
+    Value: !Ref SilverBucket
+    Description: "Name of the silver S3 bucket."
+  GoldBucketName:
+    Value: !Ref GoldBucket
+    Description: "Name of the gold S3 bucket."

@@ -1,0 +1,31 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'AWS CloudFormation Template to create an SNS topic and an email subscription'
+
+Resources:
+  GlueEmailServiceTopic:
+    Type: 'AWS::SNS::Topic'
+    Properties:
+      TopicName: 'glue_email_service'
+
+  EmailSubscription:
+    Type: 'AWS::SNS::Subscription'
+    Properties:
+      Endpoint: 'xyz@gmail.com'
+      Protocol: 'email'
+      TopicArn:
+        Ref: 'GlueEmailServiceTopic'
+
+Outputs:
+  GlueEmailServiceTopicArn:
+    Description: 'The ARN of the SNS topic'
+    Value: 
+      Ref: 'GlueEmailServiceTopic'
+    Export:
+      Name: 'GlueEmailServiceTopicArn-Output'
+
+  EmailSubscriptionArn:
+    Description: 'The ARN of the SNS email subscription'
+    Value: 
+      Ref: 'EmailSubscription'
+    Export:
+      Name: 'EmailSubscriptionArn-Output'
